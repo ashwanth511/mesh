@@ -89,8 +89,8 @@ contract FusionPlusTest is Test {
     // ===== Tests =====
 
     function testFactoryDeployment() public view {
-        assertEq(address(factory.escrowSrc()), address(0x0));
-        assertEq(address(factory.escrowDst()), address(0x0));
+        assertTrue(address(factory.escrowSrc()) != address(0x0));
+        assertTrue(address(factory.escrowDst()) != address(0x0));
     }
 
     function testResolverDeployment() public view {
@@ -139,10 +139,11 @@ contract FusionPlusTest is Test {
         bytes32 orderHash = factory.computeOrderHash(orderConfig, immutables);
         address suiEscrow = address(0x123);
         
+        vm.stopPrank();
+        
+        // Use the test contract (which is authorized) to set the Sui escrow
         resolver.setSuiEscrow(orderHash, suiEscrow);
         assertEq(resolver.getSwap(orderHash).suiEscrow, suiEscrow);
-        
-        vm.stopPrank();
     }
 
     function testAuthorizedResolver() public {

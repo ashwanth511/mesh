@@ -57,6 +57,21 @@ interface IFusionPlus {
         uint256 cancelledAt;
     }
 
+    // ===== Dutch Auction Structs =====
+
+    struct RateCurvePoint {
+        uint256 timeDelta;    // Time from auction start
+        uint256 rateBump;     // Rate advantage at this time
+    }
+
+    struct AuctionDetails {
+        uint256 initialRateBump;      // Starting rate advantage (basis points)
+        uint256 duration;             // Auction duration in seconds
+        uint256 startTime;            // Auction start timestamp
+        bool isActive;                // Auction status
+        RateCurvePoint[] rateCurvePoints; // Rate degradation curve
+    }
+
     // ===== Events =====
 
     event EscrowCreated(
@@ -75,6 +90,20 @@ interface IFusionPlus {
         bytes32 indexed orderHash,
         address indexed canceller,
         uint256 amount
+    );
+
+    event DutchAuctionStarted(
+        bytes32 indexed orderHash,
+        uint256 startTime,
+        uint256 duration,
+        uint256 initialRateBump
+    );
+
+    event DutchAuctionFilled(
+        bytes32 indexed orderHash,
+        address indexed resolver,
+        uint256 fillRate,
+        uint256 fillAmount
     );
 
     // ===== Functions =====
@@ -98,5 +127,20 @@ interface IFusionPlus {
         bytes32 orderHash
     ) external returns (uint256);
 
+    // ===== Dutch Auction Functions =====
 
+    function startAuction(
+        bytes32 orderHash,
+        AuctionDetails memory auctionDetails
+    ) external;
+
+    function getCurrentRate(bytes32 orderHash) external view returns (uint256);
+
+    function fillOrder(
+        bytes32 orderHash,
+        uint256 fillAmount,
+        bytes32 secret
+    ) external payable returns (uint256);
+
+    function isAuctionActive(bytes32 orderHash) external view returns (bool);
 } 
