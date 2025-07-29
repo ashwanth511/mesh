@@ -11,13 +11,13 @@ import { IFusionPlus } from "./IFusionPlus.sol";
  * @notice Handles locking of source tokens for cross-chain swaps
  * @custom:security-contact security@1inch.io
  */
-contract EscrowSrc is Ownable, IFusionPlus {
+contract EscrowSrc is IFusionPlus, Ownable {
     using SafeERC20 for IERC20;
 
     // ===== State Variables =====
 
-    mapping(bytes32 => EscrowStatus) public escrowStatuses;
-    mapping(bytes32 => Immutables) public escrowImmutables;
+    mapping(bytes32 => IFusionPlus.EscrowStatus) public escrowStatuses;
+    mapping(bytes32 => IFusionPlus.Immutables) public escrowImmutables;
     mapping(address => bool) public accessTokenHolders;
     uint256 public constant RESCUE_DELAY = 30 days;
 
@@ -76,7 +76,7 @@ contract EscrowSrc is Ownable, IFusionPlus {
      */
     function createEscrowSrc(
         bytes32 orderHash,
-        Immutables memory immutables
+        IFusionPlus.Immutables memory immutables
     ) external payable override {
         require(msg.value >= immutables.safetyDeposit, "Insufficient safety deposit");
         require(escrowStatuses[orderHash].deployedAt == 0, "Escrow already exists");
@@ -89,7 +89,7 @@ contract EscrowSrc is Ownable, IFusionPlus {
         require(immutables.timelocks.srcCancellation > immutables.timelocks.srcPublicWithdrawal, "Invalid timelock");
 
         // Create escrow
-        escrowStatuses[orderHash] = EscrowStatus({
+        escrowStatuses[orderHash] = IFusionPlus.EscrowStatus({
             isFilled: false,
             isCancelled: false,
             deployedAt: block.timestamp,
@@ -113,7 +113,7 @@ contract EscrowSrc is Ownable, IFusionPlus {
         bytes32 orderHash,
         bytes32 secret
     ) external override onlyValidEscrow(orderHash) onlyNotFilled(orderHash) onlyNotCancelled(orderHash) returns (uint256) {
-        Immutables storage immutables = escrowImmutables[orderHash];
+        IFusionPlus.Immutables storage immutables = escrowImmutables[orderHash];
         require(immutables.hashlock == keccak256(abi.encodePacked(secret)), "Invalid secret");
         require(block.timestamp >= immutables.timelocks.srcWithdrawal, "Withdrawal not yet available");
 
@@ -139,8 +139,8 @@ contract EscrowSrc is Ownable, IFusionPlus {
         bytes32 secret,
         address target
     ) external onlyTaker(orderHash) onlyValidEscrow(orderHash) {
-        Immutables storage immutables = escrowImmutables[orderHash];
-        EscrowStatus storage status = escrowStatuses[orderHash];
+        IFusionPlus.Immutables storage immutables = escrowImmutables[orderHash];
+        IFusionPlus.EscrowStatus storage status = escrowStatuses[orderHash];
 
         // Validate timelock
         uint256 withdrawalStart = immutables.deployedAt + immutables.timelocks.srcWithdrawal;
@@ -183,7 +183,7 @@ contract EscrowSrc is Ownable, IFusionPlus {
         bytes32 orderHash,
         bytes32 secret
     ) external onlyValidEscrow(orderHash) onlyNotFilled(orderHash) onlyNotCancelled(orderHash) returns (uint256) {
-        Immutables storage immutables = escrowImmutables[orderHash];
+        IFusionPlus.Immutables storage immutables = escrowImmutables[orderHash];
         require(immutables.hashlock == keccak256(abi.encodePacked(secret)), "Invalid secret");
         require(block.timestamp >= immutables.timelocks.srcPublicWithdrawal, "Public withdrawal not yet available");
 
@@ -206,7 +206,7 @@ contract EscrowSrc is Ownable, IFusionPlus {
     function cancel(
         bytes32 orderHash
     ) external override onlyValidEscrow(orderHash) onlyNotFilled(orderHash) onlyNotCancelled(orderHash) returns (uint256) {
-        Immutables storage immutables = escrowImmutables[orderHash];
+        IFusionPlus.Immutables storage immutables = escrowImmutables[orderHash];
         require(block.timestamp >= immutables.timelocks.srcCancellation, "Cancellation not yet available");
 
         // Mark as cancelled
@@ -227,8 +227,8 @@ contract EscrowSrc is Ownable, IFusionPlus {
     function publicCancel(
         bytes32 orderHash
     ) external onlyAccessTokenHolder onlyValidEscrow(orderHash) {
-        Immutables storage immutables = escrowImmutables[orderHash];
-        EscrowStatus storage status = escrowStatuses[orderHash];
+        IFusionPlus.Immutables storage immutables = escrowImmutables[orderHash];
+        IFusionPlus.EscrowStatus storage status = escrowStatuses[orderHash];
 
         // Validate timelock
         uint256 publicCancellationStart = immutables.deployedAt + immutables.timelocks.srcPublicCancellation;
@@ -267,7 +267,7 @@ contract EscrowSrc is Ownable, IFusionPlus {
         address token,
         uint256 amount
     ) external onlyValidEscrow(orderHash) onlyNotFilled(orderHash) onlyNotCancelled(orderHash) returns (uint256) {
-        Immutables storage immutables = escrowImmutables[orderHash];
+        IFusionPlus.Immutables storage immutables = escrowImmutables[orderHash];
         require(msg.sender == immutables.taker, "Only taker can rescue funds");
         require(block.timestamp >= immutables.timelocks.srcCancellation + 30 days, "Rescue delay not met");
 
@@ -310,7 +310,7 @@ contract EscrowSrc is Ownable, IFusionPlus {
      * @param orderHash The hash of the order
      * @return The escrow status
      */
-    function getEscrowStatus(bytes32 orderHash) external view returns (EscrowStatus memory) {
+    function getEscrowStatus(bytes32 orderHash) external view returns (IFusionPlus.EscrowStatus memory) {
         return escrowStatuses[orderHash];
     }
 
@@ -319,7 +319,7 @@ contract EscrowSrc is Ownable, IFusionPlus {
      * @param orderHash The hash of the order
      * @return The escrow immutables
      */
-    function getEscrowImmutables(bytes32 orderHash) external view returns (Immutables memory) {
+    function getEscrowImmutables(bytes32 orderHash) external view returns (IFusionPlus.Immutables memory) {
         return escrowImmutables[orderHash];
     }
 
@@ -338,10 +338,10 @@ contract EscrowSrc is Ownable, IFusionPlus {
      * @return The current stage (0-4)
      */
     function getEscrowStage(bytes32 orderHash) external view returns (uint8) {
-        Immutables storage immutables = escrowImmutables[orderHash];
+        IFusionPlus.Immutables storage immutables = escrowImmutables[orderHash];
         uint256 currentTime = block.timestamp;
         uint256 deployedAt = immutables.deployedAt;
-        Timelocks storage timelocks = immutables.timelocks;
+        IFusionPlus.Timelocks storage timelocks = immutables.timelocks;
 
         if (currentTime < deployedAt + timelocks.srcWithdrawal) {
             return 0; // Before withdrawal
@@ -363,9 +363,46 @@ contract EscrowSrc is Ownable, IFusionPlus {
      */
     function createEscrowDst(
         bytes32 /* orderHash */,
-        Immutables memory /* immutables */
+        IFusionPlus.Immutables memory /* immutables */
     ) external payable override {
         revert("Not implemented in source escrow");
+    }
+
+    // ===== Dutch Auction Functions (Stubs) =====
+
+    /**
+     * @notice Start Dutch auction (not implemented in escrow)
+     */
+    function startAuction(
+        bytes32 /* orderHash */,
+        IFusionPlus.AuctionDetails memory /* auctionDetails */
+    ) external pure override {
+        revert("Not implemented in escrow");
+    }
+
+    /**
+     * @notice Get current auction rate (not implemented in escrow)
+     */
+    function getCurrentRate(bytes32 /* orderHash */) external pure override returns (uint256) {
+        revert("Not implemented in escrow");
+    }
+
+    /**
+     * @notice Fill order (not implemented in escrow)
+     */
+    function fillOrder(
+        bytes32 /* orderHash */,
+        uint256 /* fillAmount */,
+        bytes32 /* secret */
+    ) external payable override returns (uint256) {
+        revert("Not implemented in escrow");
+    }
+
+    /**
+     * @notice Check if auction is active (not implemented in escrow)
+     */
+    function isAuctionActive(bytes32 /* orderHash */) external pure override returns (bool) {
+        revert("Not implemented in escrow");
     }
 
     // ===== Receive Function =====
