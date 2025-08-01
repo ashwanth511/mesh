@@ -1,0 +1,36 @@
+{
+  "name": "fusionplus-relayer",
+  "version": "1.0.0",
+  "description": "Cross-chain relayer for 1inch Fusion+ extension to Sui",
+  "main": "dist/relayer.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/relayer.js",
+    "dev": "ts-node src/relayer.ts",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@mysten/sui": "^1.37.0",
+    "@mysten/sui.js": "^0.54.1",
+    "dotenv": "^16.3.1",
+    "ethers": "^6.8.1"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.8",
+    "@types/node": "^20.8.10",
+    "jest": "^29.7.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.2.2"
+  },
+  "keywords": [
+    "1inch",
+    "fusion-plus",
+    "cross-chain",
+    "atomic-swap",
+    "sui",
+    "ethereum",
+    "relayer"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}

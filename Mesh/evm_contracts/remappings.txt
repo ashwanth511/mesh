@@ -1,0 +1,7 @@
+@openzeppelin/=lib/openzeppelin-contracts/
+cross-chain-swap/=lib/cross-chain-swap/contracts/
+limit-order-protocol/=lib/limit-order-protocol/
+solidity-utils/=lib/solidity-utils/
+@1inch/limit-order-protocol-contract/=lib/limit-order-protocol/
+@1inch/solidity-utils/=lib/solidity-utils/
+forge-std/=lib/forge-std/src/ 
