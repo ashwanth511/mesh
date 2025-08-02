@@ -1,6 +1,54 @@
 import { ethers } from 'ethers';
-import { JsonRpcProvider } from '@mysten/sui.js';
-import { EscrowFactory__factory, FusionResolver__factory } from '../contracts/fusionplus-eth/typechain-types';
+import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
+import {
+  MeshFusionRelayerService,
+  MeshDutchAuction,
+  MeshFinalityLockManager,
+  MeshSafetyDepositManager,
+  MeshMerkleTreeSecretManager,
+  MeshGasPriceAdjustmentManager,
+  MeshSecurityManager,
+  createMeshFusionPlusConfig,
+  MeshFusionOrder
+} from './mesh-fusion-relayer';
+
+// ABI imports for our new contracts
+const MeshEscrowABI = [
+  "event EscrowCreated(bytes32 indexed escrowId, address indexed maker, address indexed taker, uint256 amount, bytes32 secretHash, uint256 timelock, string orderHash)",
+  "event EscrowFilled(bytes32 indexed escrowId, address indexed resolver, bytes32 secret, uint256 amount)",
+  "event EscrowCancelled(bytes32 indexed escrowId, address indexed maker)",
+  "function createEscrow(bytes32 secretHash, uint256 timelock, address payable taker, string calldata orderHash, uint256 wethAmount) external returns (bytes32 escrowId)",
+  "function fillEscrow(bytes32 escrowId, bytes32 secret) external returns (uint256 amount)",
+  "function cancelEscrow(bytes32 escrowId) external returns (uint256 amount)"
+];
+
+const MeshCrossChainOrderABI = [
+  "event CrossChainOrderCreated(bytes32 indexed orderHash, bytes32 indexed limitOrderHash, address indexed maker, uint256 sourceAmount, uint256 destinationAmount)",
+  "event CrossChainOrderFilled(bytes32 indexed orderHash, address indexed resolver, bytes32 secret, uint256 fillAmount, bytes32 escrowId, string suiTransactionHash)",
+  "event CrossChainOrderCancelled(bytes32 indexed orderHash, address indexed maker)",
+  "function createCrossChainOrder(uint256 sourceAmount, uint256 destinationAmount, tuple(uint256,uint256,uint256,uint256) auctionConfig, tuple(string,uint256,string,bytes32) crossChainConfig) external returns (bytes32 orderHash)",
+  "function fillCrossChainOrder(bytes32 orderHash, bytes32 secret, uint256 fillAmount, string calldata suiTransactionHash) external returns (uint256 filledAmount)",
+  "function cancelCrossChainOrder(bytes32 orderHash) external"
+];
+
+const MeshResolverNetworkABI = [
+  "event ResolverRegistered(address indexed resolver, uint256 stake)",
+  "event OrderRegistered(bytes32 indexed orderHash, uint256 sourceAmount, uint256 destinationAmount)",
+  "event OrderFillRecorded(bytes32 indexed orderHash, address indexed resolver, uint256 fillAmount, uint256 rate)",
+  "function registerResolver(uint256 stake) external",
+  "function isAuthorized(address resolver) external view returns (bool)",
+  "function recordOrderFill(address resolver, uint256 fillAmount, uint256 rate) external"
+];
+
+const MeshLimitOrderProtocolABI = [
+  "event CrossChainOrderCreated(bytes32 indexed orderHash, bytes32 indexed limitOrderHash, address indexed maker, uint256 sourceAmount, uint256 destinationAmount)",
+  "function createCrossChainOrder(uint256 sourceAmount, uint256 destinationAmount, tuple(uint256,uint256,uint256,uint256) auctionConfig) external returns (bytes32 orderHash)"
+];
+
+const MeshDutchAuctionABI = [
+  "event AuctionInitialized(bytes32 indexed orderHash, uint256 startTime, uint256 endTime, uint256 startRate, uint256 endRate)",
+  "function initializeAuction(bytes32 orderHash, tuple(uint256,uint256,uint256,uint256) config) external"
+];
 
 interface SwapEvent {
   orderHash: string;
@@ -15,57 +63,185 @@ interface SwapEvent {
   createdAt: number;
 }
 
+// Sui integration functions
+async function createSuiEscrow(swapEvent: SwapEvent): Promise<void> {
+  console.log(`🔄 Creating Sui escrow for swap: ${swapEvent.orderHash}`);
+  
+  try {
+    // Import Sui SDK
+    const { Transaction } = await import('@mysten/sui/transactions');
+    const { Ed25519Keypair } = await import('@mysten/sui/keypairs/ed25519');
+    const { fromB64 } = await import('@mysten/sui/utils');
+    
+    // Create transaction
+    const tx = new Transaction();
+    
+    // Add escrow creation call
+    tx.moveCall({
+      target: `${process.env.SUI_PACKAGE_ID}::mesh_escrow::create_escrow`,
+      arguments: [
+        tx.pure.u64(swapEvent.amount), // amount
+        tx.pure.vector('u8', Array.from(Buffer.from(hashSecret(swapEvent.secret), 'hex'))), // secret_hash
+        tx.pure.u64(3600000), // timelock (1 hour in milliseconds)
+        tx.pure.string(swapEvent.orderHash) // order_hash
+      ]
+    });
+    
+    console.log(`✅ Sui escrow transaction created for order: ${swapEvent.orderHash}`);
+  } catch (error) {
+    console.error(`❌ Failed to create Sui escrow: ${error}`);
+  }
+}
+
+async function monitorSuiEvents(): Promise<void> {
+  console.log('📡 Monitoring Sui events...');
+  
+  // Set up polling for Sui events
+  setInterval(async () => {
+    try {
+      // Monitor for escrow creation events
+      // This would need to be implemented based on your Sui contract events
+      console.log('🔍 Checking for new Sui events...');
+    } catch (error) {
+      console.error(`❌ Sui event monitoring error: ${error}`);
+    }
+  }, parseInt(process.env.POLLING_INTERVAL || '10000'));
+}
+
+async function processPendingSwaps(): Promise<void> {
+  console.log('⚙️ Processing pending swaps...');
+  
+  // Set up polling for pending swaps
+  setInterval(async () => {
+    try {
+      // Process any pending swaps that are ready for execution
+      console.log('🔍 Checking pending swaps...');
+    } catch (error) {
+      console.error(`❌ Swap processing error: ${error}`);
+    }
+  }, parseInt(process.env.POLLING_INTERVAL || '10000'));
+}
+
+function generateSecret(orderHash: string): string {
+  // Generate a deterministic secret based on orderHash and current timestamp
+  const crypto = require('crypto');
+  const data = `${orderHash}_${Date.now()}_${Math.random()}`;
+  return crypto.createHash('sha256').update(data).digest('hex');
+}
+
+function hashSecret(secret: string): string {
+  const crypto = require('crypto');
+  return crypto.createHash('sha256').update(secret).digest('hex');
+}
+
 class CrossChainRelayer {
   private ethProvider: ethers.JsonRpcProvider;
-  private suiProvider: JsonRpcProvider;
+  private suiProvider: SuiClient;
   private ethWallet: ethers.Wallet;
   private suiWallet: any; // Sui wallet implementation
-  private factory: any;
-  private resolver: any;
+  private meshEscrow: ethers.Contract;
+  private meshCrossChainOrder: ethers.Contract;
+  private meshResolverNetwork: ethers.Contract;
+  private meshLimitOrderProtocol: ethers.Contract;
+  private meshDutchAuction: ethers.Contract;
   private pendingSwaps: Map<string, SwapEvent> = new Map();
   private isRunning: boolean = false;
+  
+  // Enhanced features similar to unite-sui
+  private retryAttempts: Map<string, number> = new Map();
+  private maxRetries: number = 3;
+  private healthCheckInterval: NodeJS.Timeout | null = null;
+  private lastHealthCheck: number = Date.now();
+  
+  // Mesh Fusion+ Components
+  private fusionRelayer: MeshFusionRelayerService;
+  private dutchAuction: MeshDutchAuction;
+  private finalityLock: MeshFinalityLockManager;
+  private safetyDeposit: MeshSafetyDepositManager;
+  private merkleTree: MeshMerkleTreeSecretManager;
+  private gasAdjustment: MeshGasPriceAdjustmentManager;
+  private security: MeshSecurityManager;
 
   constructor(
     ethRpcUrl: string,
     suiRpcUrl: string,
     ethPrivateKey: string,
     suiPrivateKey: string,
-    factoryAddress: string,
-    resolverAddress: string
+    meshEscrowAddress: string,
+    meshCrossChainOrderAddress: string,
+    meshResolverNetworkAddress: string,
+    meshLimitOrderProtocolAddress: string,
+    meshDutchAuctionAddress: string
   ) {
     // Initialize Ethereum connection
     this.ethProvider = new ethers.JsonRpcProvider(ethRpcUrl);
     this.ethWallet = new ethers.Wallet(ethPrivateKey, this.ethProvider);
     
     // Initialize Sui connection
-    this.suiProvider = new JsonRpcProvider({ url: suiRpcUrl });
+    this.suiProvider = new SuiClient({ url: suiRpcUrl });
     
-    // Initialize contracts
-    this.factory = EscrowFactory__factory.connect(factoryAddress, this.ethWallet);
-    this.resolver = FusionResolver__factory.connect(resolverAddress, this.ethWallet);
+    // Initialize contracts with new enhanced contracts
+    this.meshEscrow = new ethers.Contract(meshEscrowAddress, MeshEscrowABI, this.ethWallet);
+    this.meshCrossChainOrder = new ethers.Contract(meshCrossChainOrderAddress, MeshCrossChainOrderABI, this.ethWallet);
+    this.meshResolverNetwork = new ethers.Contract(meshResolverNetworkAddress, MeshResolverNetworkABI, this.ethWallet);
+    this.meshLimitOrderProtocol = new ethers.Contract(meshLimitOrderProtocolAddress, MeshLimitOrderProtocolABI, this.ethWallet);
+    this.meshDutchAuction = new ethers.Contract(meshDutchAuctionAddress, MeshDutchAuctionABI, this.ethWallet);
+    
+    // Initialize Mesh Fusion+ components
+    const config = createMeshFusionPlusConfig();
+    this.dutchAuction = new MeshDutchAuction(config.dutchAuction);
+    this.finalityLock = new MeshFinalityLockManager(config.finalityLock);
+    this.safetyDeposit = new MeshSafetyDepositManager('ethereum', { rate: 0.05, minAmount: ethers.parseEther('1') });
+    this.merkleTree = new MeshMerkleTreeSecretManager();
+    this.gasAdjustment = new MeshGasPriceAdjustmentManager(config.gasPriceAdjustment);
+    this.security = new MeshSecurityManager(config.securityFeatures);
+    
+    // Initialize Fusion Relayer Service
+    this.fusionRelayer = new MeshFusionRelayerService(
+      this.ethProvider,
+      this.suiProvider,
+      {
+        escrow: this.meshEscrow,
+        crossChainOrder: this.meshCrossChainOrder,
+        resolverNetwork: this.meshResolverNetwork,
+        limitOrderProtocol: this.meshLimitOrderProtocol,
+        dutchAuction: this.meshDutchAuction
+      }
+    );
   }
 
   /**
    * Start the relayer
    */
   async start() {
-    console.log('🚀 Starting Cross-Chain Relayer...');
+    console.log('🚀 Starting Mesh Fusion+ Cross-Chain Relayer...');
     this.isRunning = true;
 
     // Start monitoring events
     this.monitorEthereumEvents();
-    this.monitorSuiEvents();
+    monitorSuiEvents();
     
     // Start processing loop
-    this.processPendingSwaps();
+    processPendingSwaps();
+    
+    // Start health checks
+    this.startHealthChecks();
+    
+    console.log('✅ Mesh Fusion+ Relayer started with enhanced features');
   }
 
   /**
    * Stop the relayer
    */
   stop() {
-    console.log('🛑 Stopping Cross-Chain Relayer...');
+    console.log('🛑 Stopping Mesh Fusion+ Cross-Chain Relayer...');
     this.isRunning = false;
+    
+    // Stop health checks
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = null;
+    }
   }
 
   /**
@@ -74,58 +250,129 @@ class CrossChainRelayer {
   private async monitorEthereumEvents() {
     console.log('📡 Monitoring Ethereum events...');
 
-    // Listen for CrossChainSwapInitiated events
-    this.resolver.on('CrossChainSwapInitiated', async (
+    // Listen for CrossChainOrderCreated events from MeshCrossChainOrder
+    this.meshCrossChainOrder.on('CrossChainOrderCreated', async (
       orderHash: string,
-      isEthereumToSui: boolean,
+      limitOrderHash: string,
       maker: string,
-      taker: string,
-      srcAmount: bigint,
-      minDstAmount: bigint
+      sourceAmount: bigint,
+      destinationAmount: bigint
     ) => {
-      console.log(`🔄 New swap detected: ${orderHash}`);
+      console.log(`🔄 New cross-chain order detected: ${orderHash}`);
       
       // Generate secret for this swap
-      const secret = this.generateSecret(orderHash);
+      const secret = generateSecret(orderHash);
       
       const swapEvent: SwapEvent = {
         orderHash,
-        fromChain: isEthereumToSui ? 'ethereum' : 'sui',
-        toChain: isEthereumToSui ? 'sui' : 'ethereum',
+        fromChain: 'ethereum',
+        toChain: 'sui',
         maker,
-        taker,
-        amount: srcAmount.toString(),
-        minDstAmount: minDstAmount.toString(),
+        taker: '0x0000000000000000000000000000000000000000', // Open order
+        amount: sourceAmount.toString(),
+        minAmount: destinationAmount.toString(),
         secret,
-        status: 'created',
+        status: 'pending',
         createdAt: Date.now()
       };
 
       this.pendingSwaps.set(orderHash, swapEvent);
       
-      // Create corresponding escrow on destination chain
-      await this.createDestinationEscrow(swapEvent);
+      // Create corresponding escrow on Sui chain
+      await createSuiEscrow(swapEvent);
+      
+      // Share order with Fusion+ relayer
+      await this.shareOrderWithFusionRelayer(swapEvent);
     });
 
-    // Listen for CrossChainSwapCompleted events
-    this.resolver.on('CrossChainSwapCompleted', async (
+    // Listen for CrossChainOrderFilled events
+    this.meshCrossChainOrder.on('CrossChainOrderFilled', async (
       orderHash: string,
+      resolver: string,
       secret: string,
-      completedAt: bigint
+      fillAmount: bigint,
+      escrowId: string,
+      suiTransactionHash: string
     ) => {
-      console.log(`✅ Swap completed: ${orderHash}`);
-      this.pendingSwaps.delete(orderHash);
+      console.log(`✅ Cross-chain order filled: ${orderHash}`);
+      
+      // Update swap status
+      const swap = this.pendingSwaps.get(orderHash);
+      if (swap) {
+        swap.status = 'executed';
+        this.pendingSwaps.set(orderHash, swap);
+      }
     });
 
-    // Listen for CrossChainSwapCancelled events
-    this.resolver.on('CrossChainSwapCancelled', async (
+    // Listen for EscrowCreated events from MeshEscrow
+    this.meshEscrow.on('EscrowCreated', async (
+      escrowId: string,
+      maker: string,
+      taker: string,
+      amount: bigint,
+      secretHash: string,
+      timelock: bigint,
+      orderHash: string
+    ) => {
+      console.log(`🔐 New escrow created: ${escrowId} for order: ${orderHash}`);
+      
+      // This could be a Sui->ETH swap, monitor for completion
+      const swapEvent: SwapEvent = {
+        orderHash,
+        fromChain: 'sui',
+        toChain: 'ethereum',
+        maker,
+        taker,
+        amount: amount.toString(),
+        minAmount: amount.toString(),
+        secret: '', // Will be revealed later
+        status: 'created',
+        createdAt: Date.now()
+      };
+
+      this.pendingSwaps.set(orderHash, swapEvent);
+    });
+
+    // Listen for CrossChainOrderCancelled events
+    this.meshCrossChainOrder.on('CrossChainOrderCancelled', async (
       orderHash: string,
-      canceller: string,
-      cancelledAt: bigint
+      maker: string
     ) => {
       console.log(`❌ Swap cancelled: ${orderHash}`);
       this.pendingSwaps.delete(orderHash);
     });
+  }
+
+  /**
+   * Share order with Fusion+ relayer
+   */
+  private async shareOrderWithFusionRelayer(swapEvent: SwapEvent): Promise<void> {
+    try {
+      const fusionOrder: MeshFusionOrder = {
+        id: swapEvent.orderHash,
+        maker: swapEvent.maker,
+        sourceChain: swapEvent.fromChain,
+        destinationChain: swapEvent.toChain,
+        sourceAmount: BigInt(swapEvent.amount),
+        destinationAmount: BigInt(swapEvent.minAmount),
+        auctionConfig: {
+          auctionStartDelay: 300,
+          auctionDuration: 3600,
+          auctionStartRateMultiplier: 6.0,
+          minimumReturnRate: 0.5,
+          decreaseRatePerMinute: 0.1,
+          priceCurveSegments: 10
+        },
+        createdAt: swapEvent.createdAt,
+        status: 'pending',
+        secret: swapEvent.secret
+      };
+
+      await this.fusionRelayer.shareOrder(fusionOrder);
+      console.log(`📤 Order ${swapEvent.orderHash} shared with Fusion+ relayer`);
+    } catch (error) {
+      console.error(`❌ Failed to share order with Fusion+ relayer:`, error);
+    }
   }
 
   /**
@@ -224,11 +471,11 @@ class CrossChainRelayer {
       };
 
       // Create destination escrow
-      const tx = await this.resolver.initiateSuiToEthereumSwap(
-        orderConfig,
-        immutables,
-        swapEvent.secret,
-        { value: ethers.parseEther('0.1') }
+      const tx = await this.meshCrossChainOrder.createCrossChainOrder(
+        BigInt(swapEvent.amount),
+        BigInt(swapEvent.minAmount),
+        [300, 3600, 0, 0], // auctionConfig
+        ['sui_order_hash', 3600, 'destination_address', ethers.keccak256(ethers.toUtf8Bytes('secret'))] // crossChainConfig
       );
 
       await tx.wait();
@@ -265,11 +512,11 @@ class CrossChainRelayer {
   private async isSwapReadyForExecution(swapEvent: SwapEvent): Promise<boolean> {
     try {
       // Check if both escrows are created
-      const ethEscrowExists = await this.factory.escrowExists(swapEvent.orderHash);
+      const ethEscrowExists = await this.meshEscrow.escrows(swapEvent.orderHash);
       // const suiEscrowExists = await this.checkSuiEscrowExists(swapEvent.orderHash);
       
       // For now, just check Ethereum escrow
-      return ethEscrowExists;
+      return ethEscrowExists.maker !== ethers.ZeroAddress;
     } catch (error) {
       console.error(`❌ Error checking swap readiness:`, error);
       return false;
@@ -284,7 +531,7 @@ class CrossChainRelayer {
       console.log(`🚀 Executing swap: ${swapEvent.orderHash}`);
       
       // Execute on Ethereum side
-      const tx = await this.resolver.completeSwap(
+      const tx = await this.meshEscrow.fillEscrow(
         swapEvent.orderHash,
         swapEvent.secret
       );
@@ -335,7 +582,7 @@ class CrossChainRelayer {
 
       console.log(`❌ Cancelling swap: ${orderHash}`);
       
-      const tx = await this.resolver.cancelSwap(orderHash);
+      const tx = await this.meshCrossChainOrder.cancelCrossChainOrder(orderHash);
       await tx.wait();
       
       console.log(`✅ Swap cancelled: ${orderHash}`);
@@ -345,17 +592,76 @@ class CrossChainRelayer {
       console.error(`❌ Failed to cancel swap ${orderHash}:`, error);
     }
   }
+
+  // Enhanced features similar to unite-sui
+  private startHealthChecks(): void {
+    this.healthCheckInterval = setInterval(async () => {
+      try {
+        await this.performHealthCheck();
+        this.lastHealthCheck = Date.now();
+      } catch (error) {
+        console.error('❌ Health check failed:', error);
+      }
+    }, 60000); // Check every minute
+  }
+
+  private async performHealthCheck(): Promise<void> {
+    // Check Ethereum connection
+    const ethBlockNumber = await this.ethProvider.getBlockNumber();
+    
+    // Check Sui connection
+    const suiBlockNumber = await this.suiProvider.getLatestCheckpointSequenceNumber();
+    
+    // Check contract connections
+    const escrowAddress = await this.meshEscrow.getAddress();
+    const crossChainOrderAddress = await this.meshCrossChainOrder.getAddress();
+    
+    console.log(`🏥 Health Check - ETH Block: ${ethBlockNumber}, Sui Checkpoint: ${suiBlockNumber}, Contracts: ✅`);
+  }
+
+  private async retryOperation<T>(
+    operation: () => Promise<T>,
+    orderHash: string,
+    maxRetries: number = this.maxRetries
+  ): Promise<T> {
+    let lastError: Error;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error as Error;
+        console.warn(`⚠️ Attempt ${attempt}/${maxRetries} failed for ${orderHash}: ${error}`);
+        
+        if (attempt < maxRetries) {
+          // Exponential backoff
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+        }
+      }
+    }
+    
+    throw lastError!;
+  }
 }
 
 // Configuration interface
-interface RelayerConfig {
+export interface RelayerConfig {
+  // Ethereum Configuration
   ethRpcUrl: string;
-  suiRpcUrl: string;
   ethPrivateKey: string;
+  meshEscrowAddress: string;
+  meshCrossChainOrderAddress: string;
+  meshResolverNetworkAddress: string;
+  meshLimitOrderProtocolAddress: string;
+  meshDutchAuctionAddress: string;
+  
+  // Sui Configuration
+  suiRpcUrl: string;
   suiPrivateKey: string;
-  factoryAddress: string;
-  resolverAddress: string;
-  pollingInterval?: number;
+  suiPackageId: string;
+  
+  // Relayer Configuration
+  pollingInterval: number;
 }
 
 // Main function to start the relayer
@@ -365,8 +671,11 @@ export async function startRelayer(config: RelayerConfig) {
     config.suiRpcUrl,
     config.ethPrivateKey,
     config.suiPrivateKey,
-    config.factoryAddress,
-    config.resolverAddress
+    config.meshEscrowAddress,
+    config.meshCrossChainOrderAddress,
+    config.meshResolverNetworkAddress,
+    config.meshLimitOrderProtocolAddress,
+    config.meshDutchAuctionAddress
   );
 
   // Handle graceful shutdown

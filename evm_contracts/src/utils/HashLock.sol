@@ -1,47 +1,41 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.20;
 
 /**
  * @title HashLock
- * @dev Utility library for hash-time lock functionality
+ * @dev Utility library for hash lock operations
  */
 library HashLock {
     /**
-     * @dev Verifies if a secret matches the hash lock
-     * @param secret The secret to verify
-     * @param hashLock The hash lock to verify against
-     * @return bool True if the secret is valid
-     */
-    function verifySecret(
-        bytes32 secret,
-        bytes32 hashLock
-    ) internal pure returns (bool) {
-        return keccak256(abi.encodePacked(secret)) == hashLock;
-    }
-
-    /**
-     * @dev Creates a hash lock from a secret
+     * @dev Generates a hash lock from a secret
      * @param secret The secret to hash
-     * @return bytes32 The resulting hash lock
+     * @return hashLock The hash of the secret
      */
-    function createHashLock(bytes32 secret) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(secret));
+    function generateHashLock(bytes32 secret) internal pure returns (bytes32 hashLock) {
+        hashLock = keccak256(abi.encodePacked(secret));
     }
 
     /**
-     * @dev Generates a random secret (for testing purposes)
-     * @return bytes32 A random secret
+     * @dev Validates a secret against a hash lock
+     * @param secret The secret to validate
+     * @param hashLock The hash lock to validate against
+     * @return valid True if the secret matches the hash lock
      */
-    function generateSecret() internal view returns (bytes32) {
-        return keccak256(abi.encodePacked(block.timestamp, block.prevrandao, msg.sender));
+    function validateSecret(bytes32 secret, bytes32 hashLock) internal pure returns (bool valid) {
+        valid = keccak256(abi.encodePacked(secret)) == hashLock;
     }
 
     /**
-     * @dev Validates hash lock format
-     * @param hashLock The hash lock to validate
-     * @return bool True if valid
+     * @dev Generates a random secret
+     * @param nonce A nonce for randomness
+     * @return secret A random secret
      */
-    function isValidHashLock(bytes32 hashLock) internal pure returns (bool) {
-        return hashLock != bytes32(0);
+    function generateSecret(uint256 nonce) internal view returns (bytes32 secret) {
+        secret = keccak256(abi.encodePacked(
+            block.timestamp,
+            block.number,
+            nonce,
+            msg.sender
+        ));
     }
 } 

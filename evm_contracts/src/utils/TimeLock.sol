@@ -1,71 +1,63 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.20;
 
 /**
  * @title TimeLock
- * @dev Utility library for time lock functionality
+ * @dev Utility library for time lock operations
  */
 library TimeLock {
     /**
-     * @dev Checks if the time lock has expired
-     * @param timeLock The time lock timestamp
-     * @return bool True if expired
+     * @dev Validates if a time lock is valid
+     * @param timeLock The time lock to validate
+     * @return valid True if the time lock is valid
      */
-    function isExpired(uint256 timeLock) internal view returns (bool) {
-        return block.timestamp > timeLock;
+    function isValidTimeLock(uint256 timeLock) internal view returns (bool valid) {
+        valid = timeLock > block.timestamp;
     }
 
     /**
-     * @dev Checks if the time lock is valid (future time)
-     * @param timeLock The time lock timestamp
-     * @return bool True if valid
+     * @dev Checks if a time lock has expired
+     * @param timeLock The time lock to check
+     * @return expired True if the time lock has expired
      */
-    function isValidTimeLock(uint256 timeLock) internal view returns (bool) {
-        return timeLock > block.timestamp;
+    function isExpired(uint256 timeLock) internal view returns (bool expired) {
+        expired = block.timestamp >= timeLock;
     }
 
     /**
-     * @dev Gets the remaining time until expiration
-     * @param timeLock The time lock timestamp
-     * @return uint256 Remaining time in seconds (0 if expired)
+     * @dev Calculates time remaining until expiration
+     * @param timeLock The time lock to check
+     * @return remaining Time remaining in seconds
      */
-    function getRemainingTime(uint256 timeLock) internal view returns (uint256) {
+    function timeRemaining(uint256 timeLock) internal view returns (uint256 remaining) {
         if (block.timestamp >= timeLock) {
-            return 0;
+            remaining = 0;
+        } else {
+            remaining = timeLock - block.timestamp;
         }
-        return timeLock - block.timestamp;
     }
 
     /**
-     * @dev Creates a time lock for a specific duration from now
+     * @dev Creates a time lock with a duration from now
      * @param duration Duration in seconds
-     * @return uint256 The time lock timestamp
+     * @return timeLock The calculated time lock
      */
-    function createTimeLock(uint256 duration) internal view returns (uint256) {
-        return block.timestamp + duration;
+    function createTimeLock(uint256 duration) internal view returns (uint256 timeLock) {
+        timeLock = block.timestamp + duration;
     }
 
     /**
-     * @dev Standard time lock duration (1 hour)
-     * @return uint256 Duration in seconds
+     * @dev Validates time lock duration
+     * @param duration Duration in seconds
+     * @param minDuration Minimum allowed duration
+     * @param maxDuration Maximum allowed duration
+     * @return valid True if duration is valid
      */
-    function standardDuration() internal pure returns (uint256) {
-        return 3600; // 1 hour
-    }
-
-    /**
-     * @dev Extended time lock duration (24 hours)
-     * @return uint256 Duration in seconds
-     */
-    function extendedDuration() internal pure returns (uint256) {
-        return 86400; // 24 hours
-    }
-
-    /**
-     * @dev Short time lock duration (30 minutes)
-     * @return uint256 Duration in seconds
-     */
-    function shortDuration() internal pure returns (uint256) {
-        return 1800; // 30 minutes
+    function isValidDuration(
+        uint256 duration,
+        uint256 minDuration,
+        uint256 maxDuration
+    ) internal pure returns (bool valid) {
+        valid = duration >= minDuration && duration <= maxDuration;
     }
 } 
