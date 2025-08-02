@@ -7,13 +7,15 @@ export const config: RelayerConfig = {
   // Ethereum Configuration
   ethRpcUrl: process.env.ETH_RPC_URL || 'https://sepolia.infura.io/v3/YOUR_INFURA_KEY',
   ethPrivateKey: process.env.ETH_PRIVATE_KEY || '',
-  factoryAddress: process.env.ETH_FACTORY_ADDRESS || '',
-  resolverAddress: process.env.ETH_RESOLVER_ADDRESS || '',
+  meshEscrowAddress: process.env.MESH_ESCROW_ADDRESS || '',
+  meshCrossChainOrderAddress: process.env.MESH_CROSS_CHAIN_ORDER_ADDRESS || '',
+  meshResolverNetworkAddress: process.env.MESH_RESOLVER_NETWORK_ADDRESS || '',
+  meshLimitOrderProtocolAddress: process.env.MESH_LIMIT_ORDER_PROTOCOL_ADDRESS || '',
+  meshDutchAuctionAddress: process.env.MESH_DUTCH_AUCTION_ADDRESS || '',
   
   // Sui Configuration
   suiRpcUrl: process.env.SUI_RPC_URL || 'https://fullnode.testnet.sui.io:443',
   suiPrivateKey: process.env.SUI_PRIVATE_KEY || '',
-  suiFactoryAddress: process.env.SUI_FACTORY_ADDRESS || '',
   suiPackageId: process.env.SUI_PACKAGE_ID || '',
   
   // Relayer Configuration
@@ -25,11 +27,13 @@ export function validateConfig(config: RelayerConfig): void {
   const requiredFields = [
     'ethRpcUrl',
     'ethPrivateKey', 
-    'factoryAddress',
-    'resolverAddress',
+    'meshEscrowAddress',
+    'meshCrossChainOrderAddress',
+    'meshResolverNetworkAddress',
+    'meshLimitOrderProtocolAddress',
+    'meshDutchAuctionAddress',
     'suiRpcUrl',
     'suiPrivateKey',
-    'suiFactoryAddress',
     'suiPackageId'
   ];
 
