@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
-
+import { Github } from 'lucide-react';
 export function Navigation() {
   return (
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
@@ -25,6 +25,12 @@ export function Navigation() {
             <Link href="/swap">
               <Button size="sm">
                 Start Swapping
+              </Button>
+            </Link>
+            <Link href="https://github.com/ashwanth511/mesh" target="_blank" rel="noopener noreferrer">
+              <Button size="sm" variant="outline">
+                <Github className="w-4 h-4" />
+                Star Our Repo
               </Button>
             </Link>
           </div>

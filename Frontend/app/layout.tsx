@@ -23,7 +23,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ETH-SUI Swap",
+  title: "Mesh",
   description: "Swap tokens between Ethereum and Sui networks",
   icons: {
     icon: "/favicon.svg",
@@ -47,7 +47,7 @@ export default function RootLayout({
             <div className="w-full max-w-screen-xl px-4">
               <Footer
                 logo={<Image src="/meshlogo.svg" alt="Mesh Logo" width={40} height={40} className="h-10 w-10" />}
-                brandName="ETH ⇄ SUI Swap"
+                brandName="Mesh"
                 socialLinks={[
                   {
                     icon: <Twitter className="h-5 w-5" />,
@@ -68,8 +68,8 @@ export default function RootLayout({
                 ]}
                 legalLinks={[]}
                 copyright={{
-                  text: "© 2025 ETH ⇄ SUI Swap",
-                  license: "All rights reserved. Powered by 1inch Fusion+.",
+                  text: "© 2025 Mesh",
+                  license: "All rights reserved. Powered by Mesh.",
                 }}
               />
             </div>

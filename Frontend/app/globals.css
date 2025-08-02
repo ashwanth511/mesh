@@ -119,4 +119,16 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Ensure links are clickable */
+  a {
+    cursor: pointer;
+    pointer-events: auto;
+  }
+  
+  /* Ensure buttons are clickable */
+  button {
+    cursor: pointer;
+    pointer-events: auto;
+  }
 }

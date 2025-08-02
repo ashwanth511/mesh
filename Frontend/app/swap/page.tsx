@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { SwapPriceDisplay } from '@/components/swap-price-display';
 import { ClientOnly } from '@/components/client-only';
 import { fetchETHPrice, fetchSUIPrice } from '@/lib/utils';
+import LightRays from '@/components/ui/LightRays';
 import { 
   ArrowRightLeft, 
   ArrowDownUp, 
@@ -443,6 +444,21 @@ function SwapInterface() {
 
 export default function SwapPage() {
   return (
+    <>
+     <div className="fixed m-20 inset-0 z-0 opacity-70">
+       <LightRays
+          raysOrigin="top-center"
+          raysColor="#ffffff"
+          raysSpeed={1.5}
+          lightSpread={0.4}
+          rayLength={1.5}
+          followMouse={true}
+          mouseInfluence={0.1}
+          noiseAmount={0.1}
+          distortion={0.05}
+          className="w-full  h-full"
+        />
+        </div>
     <section className="min-h-screen bg-background py-16 md:py-32">
       <div className="mx-auto max-w-5xl px-6">
         <div className="mx-auto max-w-2xl">
@@ -454,5 +470,6 @@ export default function SwapPage() {
         </div>
       </div>
     </section>
+    </>
   );
 }

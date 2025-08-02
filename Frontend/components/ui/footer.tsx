@@ -46,16 +46,15 @@ export function Footer({
           <ul className="flex list-none mt-6 md:mt-0 space-x-3">
             {socialLinks.map((link, i) => (
               <li key={i}>
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="h-10 w-10 rounded-full"
-                  asChild
+                <Link 
+                  href={link.href} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  aria-label={link.label}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-input bg-background hover:bg-accent hover:text-accent-foreground"
                 >
-                  <a href={link.href} target="_blank" aria-label={link.label}>
-                    {link.icon}
-                  </a>
-                </Button>
+                  {link.icon}
+                </Link>
               </li>
             ))}
           </ul>
@@ -65,12 +64,23 @@ export function Footer({
             <ul className="list-none flex flex-wrap -my-1 -mx-2 lg:justify-end">
               {mainLinks.map((link, i) => (
                 <li key={i} className="my-1 mx-2 shrink-0">
-                  <a
-                    href={link.href}
-                    className="text-sm text-primary underline-offset-4 hover:underline"
-                  >
-                    {link.label}
-                  </a>
+                  {link.href.startsWith('/') ? (
+                    <Link
+                      href={link.href}
+                      className="text-sm text-primary underline-offset-4 hover:underline"
+                    >
+                      {link.label}
+                    </Link>
+                  ) : (
+                    <a
+                      href={link.href} 
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary underline-offset-4 hover:underline"
+                    >
+                      {link.label}
+                    </a>
+                  )}
                 </li>
               ))}
             </ul>
@@ -80,7 +90,9 @@ export function Footer({
               {legalLinks.map((link, i) => (
                 <li key={i} className="my-1 mx-3 shrink-0">
                   <a
-                    href={link.href}
+                    href={link.href} 
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="text-sm text-muted-foreground underline-offset-4 hover:underline"
                   >
                     {link.label}
