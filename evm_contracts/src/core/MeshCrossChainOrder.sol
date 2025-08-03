@@ -107,6 +107,8 @@ contract MeshCrossChainOrder is ReentrancyGuard, IMeshCrossChainOrder {
             endRate: auctionConfig.endRate
         });
         
+        // Approve and transfer WETH to limit order protocol
+        IERC20(address(weth)).approve(address(limitOrderProtocol), sourceAmount);
         bytes32 limitOrderHash = limitOrderProtocol.createCrossChainOrder(
             sourceAmount,
             destinationAmount,

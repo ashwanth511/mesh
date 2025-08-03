@@ -18,7 +18,7 @@ contract MeshDutchAuction is ReentrancyGuard, IMeshDutchAuction {
     mapping(bytes32 => address) public lastBidder;
 
     // Only the LimitOrderProtocol can initialize auctions
-    address public immutable limitOrderProtocol;
+    address public limitOrderProtocol;
 
     // Enhanced features
     uint256 public constant MIN_AUCTION_DURATION = 300; // 5 minutes
@@ -28,6 +28,14 @@ contract MeshDutchAuction is ReentrancyGuard, IMeshDutchAuction {
 
     constructor(address _limitOrderProtocol) {
         limitOrderProtocol = _limitOrderProtocol;
+    }
+    
+    /**
+     * @dev Updates the LimitOrderProtocol address (only callable by current limitOrderProtocol)
+     */
+    function setLimitOrderProtocol(address _newLimitOrderProtocol) external {
+        require(msg.sender == limitOrderProtocol || limitOrderProtocol == address(0), "Only current LOP can update");
+        limitOrderProtocol = _newLimitOrderProtocol;
     }
 
     modifier onlyLimitOrderProtocol() {

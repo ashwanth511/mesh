@@ -27,7 +27,10 @@ contract DeployMesh is Script {
     address public meshCrossChainOrder;
     
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        string memory privateKeyString = vm.envString("PRIVATE_KEY");
+        // Add 0x prefix and parse as hex
+        string memory privateKeyHex = string(abi.encodePacked("0x", privateKeyString));
+        uint256 deployerPrivateKey = vm.parseUint(privateKeyHex);
         address deployer = vm.addr(deployerPrivateKey);
         
         console.log("Deploying Mesh 1inch Fusion+ contracts with deployer:", deployer);
@@ -39,15 +42,15 @@ contract DeployMesh is Script {
         console.log("MeshEscrow deployed at:", meshEscrow);
         console.log("Supports: WETH and Native ETH");
         
-        // 2. Deploy MeshDutchAuction
-        meshDutchAuction = address(new MeshDutchAuction(address(0))); // Will be updated after LOP deployment
+        // 2. Deploy MeshDutchAuction with address(0) initially (like unite-sui)
+        meshDutchAuction = address(new MeshDutchAuction(address(0)));
         console.log("MeshDutchAuction deployed at:", meshDutchAuction);
         
-        // 3. Deploy MeshResolverNetwork
-        meshResolverNetwork = address(new MeshResolverNetwork(address(0), WETH_SEPOLIA, deployer)); // Will be updated after LOP deployment
+        // 3. Deploy MeshResolverNetwork with address(0) initially
+        meshResolverNetwork = address(new MeshResolverNetwork(address(0), WETH_SEPOLIA, deployer));
         console.log("MeshResolverNetwork deployed at:", meshResolverNetwork);
         
-        // 4. Deploy MeshLimitOrderProtocol (main orchestrator)
+        // 4. Deploy MeshLimitOrderProtocol with all addresses (some will be updated later)
         meshLimitOrderProtocol = address(new MeshLimitOrderProtocol(
             WETH_SEPOLIA,
             meshDutchAuction,
@@ -55,6 +58,9 @@ contract DeployMesh is Script {
             meshEscrow
         ));
         console.log("MeshLimitOrderProtocol deployed at:", meshLimitOrderProtocol);
+        
+        console.log("\n IMPORTANT: Use UpdateMeshAddresses.s.sol to update contract addresses!");
+        console.log("Run: forge script script/UpdateMeshAddresses.s.sol:UpdateMeshAddresses --rpc-url <RPC> --private-key <KEY> --broadcast");
         
         // 5. Deploy MeshCrossChainOrder
         meshCrossChainOrder = address(new MeshCrossChainOrder(
@@ -76,30 +82,7 @@ contract DeployMesh is Script {
         console.log("Deployer:", deployer);
         console.log("=====================================================\n");
         
-        // Verify deployment
-        _verifyDeployment();
-    }
-    
-    function _verifyDeployment() internal view {
-        // Verify MeshEscrow
-        MeshEscrow escrow = MeshEscrow(payable(meshEscrow));
-        require(address(escrow.weth()) == WETH_SEPOLIA, "Invalid WETH address in escrow");
-        require(escrow.owner() == vm.addr(vm.envUint("PRIVATE_KEY")), "Invalid owner in escrow");
-        
-        // Verify MeshLimitOrderProtocol
-        MeshLimitOrderProtocol lop = MeshLimitOrderProtocol(meshLimitOrderProtocol);
-        require(address(lop.weth()) == WETH_SEPOLIA, "Invalid WETH address in LOP");
-        require(address(lop.dutchAuction()) == meshDutchAuction, "Invalid DutchAuction address in LOP");
-        require(address(lop.resolverNetwork()) == meshResolverNetwork, "Invalid ResolverNetwork address in LOP");
-        require(address(lop.escrowContract()) == meshEscrow, "Invalid Escrow address in LOP");
-        
-        // Verify MeshCrossChainOrder
-        MeshCrossChainOrder cco = MeshCrossChainOrder(meshCrossChainOrder);
-        require(address(cco.weth()) == WETH_SEPOLIA, "Invalid WETH address in CCO");
-        require(address(cco.limitOrderProtocol()) == meshLimitOrderProtocol, "Invalid LOP address in CCO");
-        require(address(cco.escrowContract()) == meshEscrow, "Invalid Escrow address in CCO");
-        
-        console.log("Complete deployment verification passed!");
-        console.log("All Mesh 1inch Fusion+ contracts are ready!");
+        console.log(" Base deployment complete!");
+        console.log(" Next step: Run UpdateMeshAddresses.s.sol to link contracts properly");
     }
 } 

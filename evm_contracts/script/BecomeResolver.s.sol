@@ -10,11 +10,14 @@ import "../src/core/MeshResolverNetwork.sol";
  * @dev Simple script showing how to become a resolver with just 0.001 ETH (~$2)
  */
 contract BecomeResolverScript is Script {
-    // Update these addresses after deployment
-    address constant MESH_RESOLVER_NETWORK = address(0); // UPDATE THIS
+    // Contract addresses (DEPLOYED ON SEPOLIA)
+    address constant MESH_RESOLVER_NETWORK = 0x9Fb0993624b8AFbedC11DD9506433DF36e0474c1;
     
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        string memory privateKeyString = vm.envString("PRIVATE_KEY");
+        // Add 0x prefix and parse as hex
+        string memory privateKeyHex = string(abi.encodePacked("0x", privateKeyString));
+        uint256 deployerPrivateKey = vm.parseUint(privateKeyHex);
         address deployer = vm.addr(deployerPrivateKey);
         
         console.log("=== Become a Resolver Demo ===");

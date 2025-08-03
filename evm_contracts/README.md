@@ -50,7 +50,7 @@ evm_contracts/
 - **Cross-Chain Orders**: Atomic cross-chain execution
 - **HTLC Escrow**: Secure atomic swaps
 
-### ✅ Enhanced Features (Better than unite-sui)
+### ✅ Enhanced Features (Better than )
 - **Bid Tracking**: Record and track auction bids
 - **Reputation System**: Advanced resolver reputation
 - **Penalty System**: Automated penalty application
@@ -224,32 +224,22 @@ forge test --match-test testRegisterResolver
 - **Maker-only functions**: Only order maker can cancel
 - **Resolver authorization**: Only authorized resolvers can fill
 
-## 🌐 Network Support
 
-### Testnet (Sepolia)
-- **WETH**: `0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9`
-- **RPC**: Sepolia testnet
-- **Explorer**: Sepolia Etherscan
 
-### Mainnet
-- **WETH**: `0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2`
-- **RPC**: Ethereum mainnet
-- **Explorer**: Etherscan
 
-## 📊 Comparison with unite-sui
 
 ### ✅ **Complete 1inch Fusion+ Implementation**
 - **All Components**: LimitOrderProtocol, DutchAuction, ResolverNetwork, CrossChainOrder
-- **Same Pattern**: Exact same architecture as unite-sui
+- **Same Pattern**: Exact same architecture as 
 - **Enhanced Features**: Additional improvements and features
 
-### ✅ **What We Have (Same as unite-sui)**
-- **WETH usage**: Both use WETH for consistency and security
+### ✅ **What We Have (Same as )**
+- **WETH usage**: Both use WETH or ETH for consistency and security
 - **HTLC pattern**: Same Hash-Time Lock Contract implementation
 - **1inch Fusion+**: Complete 1inch Fusion+ ecosystem
 - **Cross-chain flow**: Same ETH ↔ Sui swap mechanism
 
-### 🚀 **Enhanced Features (Better than unite-sui)**
+### 🚀 **Enhanced Features (Better than )**
 - **Bid tracking**: Record and track auction bids
 - **Advanced reputation**: More sophisticated reputation system
 - **Penalty automation**: Automated penalty application
@@ -338,4 +328,4 @@ Your Mesh EVM contracts now have the **complete 1inch Fusion+ ecosystem** with e
 - **Documentation**: Complete documentation
 - **Deployment**: Ready for testnet/mainnet
 
-**Your implementation is now complete and better than unite-sui!** 🎉
+**Your implementation is now complete and better than !** 🎉

@@ -5,9 +5,10 @@
   "main": "dist/relayer.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/relayer.js",
-    "dev": "ts-node src/relayer.ts",
-    "test": "jest"
+    "start": "ts-node src/mesh-resolver-service.ts",
+    "dev": "ts-node src/mesh-resolver-service.ts",
+    "test": "jest",
+    "test-instant": "node test-instant-delivery.js"
   },
   "dependencies": {
     "@mysten/sui": "^1.37.0",
