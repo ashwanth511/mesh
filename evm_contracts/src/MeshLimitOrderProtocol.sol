@@ -63,7 +63,7 @@ contract MeshLimitOrderProtocol is ReentrancyGuard, IMeshLimitOrderProtocol {
         if (auctionConfig.auctionEndTime - auctionConfig.auctionStartTime > MAX_AUCTION_DURATION) revert AuctionTooLong();
         if (auctionConfig.startRate == 0 || auctionConfig.endRate == 0) revert InvalidRates();
 
-        // Check WETH allowance
+        // Check WETH allowance (allow both user and contract calls)
         if (weth.allowance(msg.sender, address(this)) < sourceAmount) {
             revert InsufficientAllowance();
         }

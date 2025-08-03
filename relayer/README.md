@@ -1,6 +1,6 @@
 # 🔄 Mesh Fusion+ Cross-Chain Relayer
 
-A comprehensive cross-chain relayer service for Mesh 1inch Fusion+ integration, combining the best of unite-sui architecture with your enhanced contracts.
+
 
 ## 🏗️ Architecture
 
@@ -214,28 +214,6 @@ const isSecure = await security.performSecurityCheck(txHash, user, action);
 - Resolver success rates
 - Cross-chain finality times
 
-## 🛡️ Production Checklist
-
-### **Pre-Deployment**
-- [ ] All contracts deployed and verified
-- [ ] Environment variables configured
-- [ ] Resolver whitelist populated
-- [ ] Admin addresses set
-- [ ] Emergency pause guardian configured
-
-### **Security**
-- [ ] Private keys secured (hardware wallet/HSM)
-- [ ] Environment variables not in code
-- [ ] Rate limiting configured
-- [ ] Circuit breakers enabled
-- [ ] Regular health checks scheduled
-
-### **Monitoring**
-- [ ] Log aggregation configured
-- [ ] Alert system set up
-- [ ] Performance metrics tracking
-- [ ] Error reporting enabled
-- [ ] Backup procedures tested
 
 ## 🚨 Troubleshooting
 
@@ -289,13 +267,4 @@ Your Mesh Fusion+ relayer is ready for production when:
 ✅ **Monitoring configured**
 ✅ **Emergency procedures tested**
 
-## 📞 Support
 
-If you encounter issues:
-1. Check the troubleshooting section above
-2. Review contract events and logs
-3. Verify all environment variables are correct
-4. Ensure sufficient gas and token balances
-5. Check resolver whitelist and permissions
-
-Your Mesh Fusion+ relayer is **superior to unite-sui** and ready for production deployment! 🚀 

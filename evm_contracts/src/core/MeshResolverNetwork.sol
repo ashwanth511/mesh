@@ -30,7 +30,7 @@ contract MeshResolverNetwork is ReentrancyGuard, Ownable, IMeshResolverNetwork {
     mapping(address => uint256) public resolverReputation;
 
     // Configuration
-    address public immutable limitOrderProtocol;
+    address public limitOrderProtocol;
     IWETH public immutable weth;
     uint256 public constant MIN_STAKE = 0.001e18; // 0.001 WETH minimum stake (very low!)
     uint256 public constant MAX_STAKE = 10e18; // 10 WETH maximum stake
@@ -53,6 +53,14 @@ contract MeshResolverNetwork is ReentrancyGuard, Ownable, IMeshResolverNetwork {
     constructor(address _limitOrderProtocol, address _weth, address initialOwner) Ownable(initialOwner) {
         limitOrderProtocol = _limitOrderProtocol;
         weth = IWETH(_weth);
+    }
+    
+    /**
+     * @dev Updates the LimitOrderProtocol address (only callable by current limitOrderProtocol or owner)
+     */
+    function setLimitOrderProtocol(address _newLimitOrderProtocol) external {
+        require(msg.sender == limitOrderProtocol || limitOrderProtocol == address(0) || msg.sender == owner(), "Only current LOP or owner can update");
+        limitOrderProtocol = _newLimitOrderProtocol;
     }
 
     /**

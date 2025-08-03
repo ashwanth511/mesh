@@ -80,6 +80,11 @@ contract MeshCrossChainOrderTest is Test {
             abi.encodeWithSelector(IERC20.transfer.selector),
             abi.encode(true)
         );
+        vm.mockCall(
+            address(weth),
+            abi.encodeWithSelector(IERC20.approve.selector),
+            abi.encode(true)
+        );
         
         // Mock limit order protocol operations
         vm.mockCall(

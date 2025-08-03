@@ -8,34 +8,42 @@ import "../src/core/MeshCrossChainOrder.sol";
 import "../src/MeshLimitOrderProtocol.sol";
 import "../src/core/MeshDutchAuction.sol";
 import "../src/core/MeshResolverNetwork.sol";
+import "./DynamicConfig.s.sol";
 
 /**
  * @title TestETHToSuiSwap
- * @dev Complete test script for ETH to SUI cross-chain swap
+ * @dev Complete test script for ETH to SUI cross-chain swap with dynamic configuration
  */
 contract TestETHToSuiSwapScript is Script {
-    // Contract addresses (update these with your deployed addresses)
-    address constant MESH_ESCROW = address(0); // UPDATE THIS
-    address constant MESH_CROSS_CHAIN_ORDER = address(0); // UPDATE THIS
-    address constant MESH_LIMIT_ORDER_PROTOCOL = address(0); // UPDATE THIS
-    address constant MESH_DUTCH_AUCTION = address(0); // UPDATE THIS
-    address constant MESH_RESOLVER_NETWORK = address(0); // UPDATE THIS
+    // Contract addresses (DEPLOYED ON SEPOLIA)
+    address constant MESH_ESCROW = 0x326828Bb799bDAf4f37127d5Ed413A5f26233aE9;
+    address constant MESH_CROSS_CHAIN_ORDER = 0x297e209DFD686aBb121832B31372AC44ea88D6E0;
+    address constant MESH_LIMIT_ORDER_PROTOCOL = 0xbB429b3718697933dE85201403b77e5c2eA66794;
+    address constant MESH_DUTCH_AUCTION = 0xCe8961a85fE2FAF4FED19a790f3F3c4a8D20eF0d;
+    address constant MESH_RESOLVER_NETWORK = 0xa6F654DED8EBC7Ed1bFC49a40E399E5ba6ac8b22;
     address constant WETH_SEPOLIA = 0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9;
     
-    // Test parameters
-    uint256 constant ETH_AMOUNT = 0.01 ether; // 0.01 ETH
-    uint256 constant SUI_AMOUNT = 10 * 1e9; // 10 SUI (1e9 = 1 SUI)
-    string constant SUI_ORDER_HASH = "test_sui_order_123";
+    // Dynamic configuration
+    DynamicConfig config;
     
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        string memory privateKeyString = vm.envString("PRIVATE_KEY");
+        // Add 0x prefix and parse as hex
+        string memory privateKeyHex = string(abi.encodePacked("0x", privateKeyString));
+        uint256 deployerPrivateKey = vm.parseUint(privateKeyHex);
         address deployer = vm.addr(deployerPrivateKey);
+        
+        // Initialize dynamic configuration
+        config = new DynamicConfig();
         
         vm.startBroadcast(deployerPrivateKey);
         
-        console.log(" Testing ETH to SUI Cross-Chain Swap");
+        console.log(" Testing ETH to SUI Cross-Chain Swap (Dynamic Configuration)");
         console.log("Deployer:", deployer);
         console.log("ETH Balance:", deployer.balance);
+        
+        // Print current configuration
+        config.printConfig();
         
         // Step 1: Test Native ETH Cross-Chain Order
         testNativeETHCrossChainOrder(deployer);
@@ -65,24 +73,24 @@ contract TestETHToSuiSwapScript is Script {
         
         MeshCrossChainOrder crossChainOrder = MeshCrossChainOrder(MESH_CROSS_CHAIN_ORDER);
         
-        // Create auction config
+        // Create auction config (DYNAMIC RATES from environment)
         IMeshCrossChainOrder.DutchAuctionConfig memory auctionConfig = IMeshCrossChainOrder.DutchAuctionConfig({
             auctionStartTime: block.timestamp + 300, // Start in 5 minutes
-            auctionEndTime: block.timestamp + 3900,  // End in 65 minutes
-            startRate: 6 * 1e18, // 6:1 starting rate
-            endRate: 1 * 1e18    // 1:1 ending rate
+            auctionEndTime: block.timestamp + config.getAuctionDuration(),  // Dynamic duration
+            startRate: config.getAuctionStartRate(), // Dynamic start rate
+            endRate: config.getAuctionEndRate()    // Dynamic end rate
         });
         
-        // Create cross-chain config
+        // Create cross-chain config (DYNAMIC from environment)
         IMeshCrossChainOrder.CrossChainConfig memory crossChainConfig = IMeshCrossChainOrder.CrossChainConfig({
-            suiOrderHash: SUI_ORDER_HASH,
-            timelockDuration: 3600, // 1 hour
+            suiOrderHash: config.getOrderHash(),
+            timelockDuration: config.getTimelockDuration(), // Dynamic timelock
             destinationAddress: "0x1234567890123456789012345678901234567890",
             secretHash: keccak256(abi.encodePacked("test_secret"))
         });
         
-        try crossChainOrder.createCrossChainOrderWithEth{value: ETH_AMOUNT}(
-            SUI_AMOUNT,
+        try crossChainOrder.createCrossChainOrderWithEth{value: config.getTestETHAmount()}(
+            config.getTestSUIAmount(),
             auctionConfig,
             crossChainConfig
         ) returns (bytes32 orderHash) {
@@ -110,11 +118,11 @@ contract TestETHToSuiSwapScript is Script {
         
         // First, get some WETH
         IWETH weth = IWETH(WETH_SEPOLIA);
-        try weth.deposit{value: ETH_AMOUNT}() {
+        try weth.deposit{value: config.getTestETHAmount()}() {
             console.log(" Deposited ETH to WETH");
             
             // Approve WETH spending
-            weth.approve(MESH_CROSS_CHAIN_ORDER, ETH_AMOUNT);
+            weth.approve(MESH_CROSS_CHAIN_ORDER, config.getTestETHAmount());
             console.log(" Approved WETH spending");
             
             MeshCrossChainOrder crossChainOrder = MeshCrossChainOrder(MESH_CROSS_CHAIN_ORDER);
@@ -136,8 +144,8 @@ contract TestETHToSuiSwapScript is Script {
             });
             
             try crossChainOrder.createCrossChainOrder(
-                ETH_AMOUNT,
-                SUI_AMOUNT,
+                config.getTestETHAmount(),
+                config.getTestSUIAmount(),
                 auctionConfig,
                 crossChainConfig
             ) returns (bytes32 orderHash) {
@@ -167,7 +175,7 @@ contract TestETHToSuiSwapScript is Script {
         uint256 timeLock = block.timestamp + 3600; // 1 hour
         address payable taker = payable(address(0x1234567890123456789012345678901234567890));
         
-        try escrow.createEscrowWithEth{value: ETH_AMOUNT}(
+        try escrow.createEscrowWithEth{value: config.getTestETHAmount()}(
             hashLock,
             timeLock,
             taker,
